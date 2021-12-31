@@ -1,0 +1,64 @@
+name: unix
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+jobs:
+  GNU:
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          repository: llvm/llvm-project
+          ref: release/13.x
+      - run: |
+          cmake -S llvm -B build -DLLVM_BUILD_STATIC=ON -DLLVM_ENABLE_ASSERTIONS=OFF -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_INSTALL_PREFIX=prefix -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra"
+          cmake --build build -t clang-format -j$(nproc)
+          cmake --build build -t install-clang-format-stripped
+      - uses: actions/upload-artifact@v2
+        with:
+          name: clang-format-linux
+          path: prefix
+          if-no-files-found: ignore
+  AppleClang:
+    continue-on-error: true
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          repository: llvm/llvm-project
+          ref: release/13.x
+      - run: |
+          cmake -S llvm -B build -DLLVM_BUILD_STATIC=ON -DLLVM_ENABLE_ASSERTIONS=OFF -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_INSTALL_PREFIX=prefix -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra"
+          cmake --build build -t clang-format -j$(sysctl -n hw.ncpu)
+          cmake --build build -t install-clang-format-stripped
+      - uses: actions/upload-artifact@v2
+        with:
+          name: clang-format-macos
+          path: prefix
+          if-no-files-found: ignore
+  mingw-w64:
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          repository: llvm/llvm-project
+          ref: release/13.x
+      - uses: actions/checkout@v2
+        with:
+          repository: tqfx/cmake
+          path: cmake
+          ref: source
+      - run: sudo apt-get update && sudo apt-get install -y mingw-w64
+      - run: |
+          cmake -S llvm -B build -DCMAKE_TOOLCHAIN_FILE=cmake/mingw64.cmake -DLLVM_BUILD_STATIC=ON -DLLVM_ENABLE_ASSERTIONS=OFF -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_INSTALL_PREFIX=prefix -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra"
+          cmake --build build -t clang-format -j$(nproc)
+          cmake --build build -t install-clang-format-stripped
+      - uses: actions/upload-artifact@v2
+        with:
+          name: clang-format-mingw64
+          path: prefix
+          if-no-files-found: ignore
